@@ -1,0 +1,11 @@
+meta {
+  name: Get all active products
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/products?active=true
+  method: GET
+  auth: none
+}

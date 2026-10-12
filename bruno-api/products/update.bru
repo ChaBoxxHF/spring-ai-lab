@@ -1,0 +1,20 @@
+meta {
+  name: Update product
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/api/products/1
+  method: PUT
+  auth: none
+  headers {
+    Content-Type: application/json
+  }
+  body: {
+    "reference": "PROD-001",
+    "name": "Clavier mécanique RGB",
+    "price": 99.90,
+    "active": true
+  }
+}

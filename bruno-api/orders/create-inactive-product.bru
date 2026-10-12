@@ -1,0 +1,26 @@
+meta {
+  name: Create order with inactive product
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  method: POST
+  auth: none
+  headers {
+    Content-Type: application/json
+  }
+  body: {
+    "clientId": 1,
+    "items": [
+      {
+        "productId": 2,
+        "quantity": 1
+      }
+    ]
+  }
+  assert {
+    res.status: 400
+  }
+}

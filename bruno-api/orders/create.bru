@@ -1,0 +1,23 @@
+meta {
+  name: Create order
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  method: POST
+  auth: none
+  headers {
+    Content-Type: application/json
+  }
+  body: {
+    "clientId": 1,
+    "items": [
+      {
+        "productId": 1,
+        "quantity": 2
+      }
+    ]
+  }
+}

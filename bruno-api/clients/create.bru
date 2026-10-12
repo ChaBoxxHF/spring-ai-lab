@@ -1,0 +1,19 @@
+meta {
+  name: Create client
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/clients
+  method: POST
+  auth: none
+  headers {
+    Content-Type: application/json
+  }
+  body: {
+    "firstName": "Alice",
+    "lastName": "Dupont",
+    "email": "alice.dupont@example.com"
+  }
+}

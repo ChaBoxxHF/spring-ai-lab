@@ -1,0 +1,21 @@
+meta {
+  name: Create order with no items
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  method: POST
+  auth: none
+  headers {
+    Content-Type: application/json
+  }
+  body: {
+    "clientId": 1,
+    "items": []
+  }
+  assert {
+    res.status: 400
+  }
+}

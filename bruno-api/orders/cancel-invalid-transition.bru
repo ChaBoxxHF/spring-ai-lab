@@ -1,0 +1,14 @@
+meta {
+  name: Cancel order invalid transition
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/orders/1/cancel
+  method: POST
+  auth: none
+  assert {
+    res.status: 500
+  }
+}

@@ -1,0 +1,11 @@
+meta {
+  name: Cancel order
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/orders/1/cancel
+  method: POST
+  auth: none
+}
