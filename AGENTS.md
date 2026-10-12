@@ -1,23 +1,52 @@
-# AGENTS.md
+# AI Spring Lab
 
-Lab de formation « Initiation IA » (CEPN) : une application Spring Boot qui sert de terrain d'expérimentation pour Spring AI. Le code doit rester lisible par des apprenants : privilégier des classes courtes et explicites aux abstractions astucieuses.
+## Project
 
-## Stack
+This project is a Spring Boot REST API for order management.
 
-- Java 21, Maven via le wrapper (`./mvnw`).
-- **Spring Boot 4.x** (Spring Framework 7, Jakarta EE). Les starters sont modulaires : `spring-boot-starter-webmvc` (et non `-web`), un starter de test par module (`spring-boot-starter-webmvc-test`, `-data-jpa-test`…), console H2 dans `spring-boot-h2console`. Calquer tout nouvel ajout sur ce découpage plutôt que sur les exemples Boot 3.
-- Persistance : Spring Data JPA + H2 en mémoire (données perdues à chaque redémarrage), schéma piloté par Flyway.
-- Spring AI n'est pas encore dans le `pom.xml`. Pour l'ajouter : importer `spring-ai-bom` dans `<dependencyManagement>` avec une version compatible Boot 4, puis déclarer les starters sans version.
+## Architecture
 
-## Conventions
+Use the following dependency flow:
 
-- Package racine : `dev.crochard.spring_ai_lab` (underscore, le tiret étant invalide en Java).
-- Configuration en YAML dans `src/main/resources/application.yaml`.
-- Indentation Java par tabulations, comme le code généré existant.
-- Toute évolution du schéma passe par une nouvelle migration `src/main/resources/db/migration/V<n>__<description>.sql` ; une migration déjà appliquée reste figée.
-- Les clés d'API (OpenAI, Anthropic, etc.) se lisent depuis des variables d'environnement référencées dans le YAML, par exemple `${OPENAI_API_KEY}`, et restent hors du dépôt.
+Controller -> Service -> Repository
 
-## Vérification
+Controllers must not directly access repositories.
 
-- `./mvnw test` doit passer avant de considérer une tâche terminée.
-- `./mvnw spring-boot:run` pour lancer l'application (port 8080, console H2 sur `/h2-console`).
+## Java
+
+- Java 21
+- Constructor injection
+- Records for immutable DTOs
+- BigDecimal for monetary values
+- Never use double or float for monetary calculations
+
+## Spring
+
+- Business logic belongs in services.
+- Transactions belong at service boundaries.
+- Validate REST request bodies.
+- Do not expose JPA entities directly through the API.
+
+## Testing
+
+- JUnit 5
+- Mockito
+- AssertJ
+- Spring Boot Test
+- Testcontainers for database integration tests
+
+## Verification
+
+Before considering a task complete:
+
+1. Compile the project.
+2. Run relevant tests.
+3. Run the complete test suite.
+4. Review the Git diff.
+5. Do not modify unrelated files.
+
+## Important
+
+Do not invent business rules.
+
+If a requirement is ambiguous, ask for clarification.
