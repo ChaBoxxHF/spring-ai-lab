@@ -5,9 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.math.BigDecimal;
+import java.util.Map;
 import java.util.UUID;
 
 import com.jayway.jsonpath.JsonPath;
@@ -22,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
@@ -228,6 +232,88 @@ class OrderApiIT {
 				{"clientId": 999999, "lines": [{"productId": %d, "quantity": 1}]}
 				""".formatted(productId))
 			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void createsOrderWithLocationAndPersistsLinesWithMemorizedPrice() throws Exception {
+		long clientId = createClient();
+		long productId = createProduct("12.50", true);
+
+		ResultActions result = postJson("/api/orders", """
+				{"clientId": %d, "lines": [{"productId": %d, "quantity": 4}]}
+				""".formatted(clientId, productId))
+			.andExpect(status().isCreated());
+		long orderId = idOf(result);
+		result.andExpect(header().string("Location", "/api/orders/" + orderId));
+
+		Map<String, Object> order = jdbcTemplate.queryForMap("SELECT client_id, status FROM orders WHERE id = ?",
+				orderId);
+		assertThat(((Number) order.get("client_id")).longValue()).isEqualTo(clientId);
+		assertThat(order.get("status")).isEqualTo("DRAFT");
+
+		Map<String, Object> line = jdbcTemplate
+			.queryForMap("SELECT product_id, quantity, unit_price FROM order_lines WHERE order_id = ?", orderId);
+		assertThat(((Number) line.get("product_id")).longValue()).isEqualTo(productId);
+		assertThat(line.get("quantity")).isEqualTo(4);
+		assertThat((BigDecimal) line.get("unit_price")).isEqualByComparingTo("12.50");
+	}
+
+	@Test
+	void returns404ForUnknownProductAndPersistsNothing() throws Exception {
+		long clientId = createClient();
+		long productId = createProduct("10.00", true);
+		int ordersBefore = count("orders");
+		int linesBefore = count("order_lines");
+
+		postJson("/api/orders", """
+				{"clientId": %d, "lines": [
+					{"productId": %d, "quantity": 1},
+					{"productId": 999999999, "quantity": 1}]}
+				""".formatted(clientId, productId))
+			.andExpect(status().isNotFound());
+
+		assertThat(count("orders")).isEqualTo(ordersBefore);
+		assertThat(count("order_lines")).isEqualTo(linesBefore);
+	}
+
+	@Test
+	void rejectsDoubleCancellation() throws Exception {
+		long orderId = createOrder();
+
+		changeStatus(orderId, "CANCELLED").andExpect(status().isOk());
+		changeStatus(orderId, "CANCELLED").andExpect(status().isConflict());
+
+		mockMvc.perform(get("/api/orders/{id}", orderId)).andExpect(jsonPath("$.status").value("CANCELLED"));
+	}
+
+	@Test
+	void returns404ForUnknownOrder() throws Exception {
+		mockMvc.perform(get("/api/orders/{id}", 999999999L)).andExpect(status().isNotFound());
+	}
+
+	@Test
+	void databaseConstraintsRejectInvalidData() throws Exception {
+		long orderId = createOrder();
+		long productId = createProduct("10.00", true);
+
+		assertThatThrownBy(() -> jdbcTemplate.update(
+				"INSERT INTO products (reference, name, price, active) VALUES (?, 'Produit', 0, true)",
+				"REF-" + UUID.randomUUID()))
+			.as("prix strictement positif")
+			.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> jdbcTemplate.update(
+				"INSERT INTO clients (first_name, last_name, email) VALUES ('Ada', 'Lovelace', ?)",
+				uniqueEmail().toUpperCase()))
+			.as("email en minuscules")
+			.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> jdbcTemplate.update(
+				"INSERT INTO order_lines (order_id, product_id, quantity, unit_price) VALUES (?, ?, 0, 10.00)",
+				orderId, productId))
+			.as("quantité strictement positive")
+			.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> jdbcTemplate.update("UPDATE orders SET status = 'SHIPPED' WHERE id = ?", orderId))
+			.as("statut connu")
+			.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	private long createOrder() throws Exception {

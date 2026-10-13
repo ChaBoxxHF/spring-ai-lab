@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -11,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import dev.crochard.spring_ai_lab.common.NotFoundException;
 import org.junit.jupiter.api.Test;
@@ -94,6 +96,36 @@ class ProductControllerTest {
 				{"active": false}
 				"""))
 			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void findByIdReturnsProduct() throws Exception {
+		when(productService.findById(3L))
+			.thenReturn(new ProductResponse(3L, "KB-01", "Clavier", new BigDecimal("49.99"), true));
+
+		mockMvc.perform(get("/api/products/3"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.reference").value("KB-01"))
+			.andExpect(jsonPath("$.price").value(49.99));
+	}
+
+	@Test
+	void mapsUnknownProductOnReadTo404() throws Exception {
+		when(productService.findById(99L)).thenThrow(new NotFoundException("Produit", 99L));
+
+		mockMvc.perform(get("/api/products/99")).andExpect(status().isNotFound());
+	}
+
+	@Test
+	void findAllReturnsActiveAndInactiveProducts() throws Exception {
+		when(productService.findAll()).thenReturn(
+				List.of(new ProductResponse(3L, "KB-01", "Clavier", new BigDecimal("49.99"), true),
+						new ProductResponse(4L, "OLD-01", "Ancien", new BigDecimal("5.00"), false)));
+
+		mockMvc.perform(get("/api/products"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(2))
+			.andExpect(jsonPath("$[1].active").value(false));
 	}
 
 }

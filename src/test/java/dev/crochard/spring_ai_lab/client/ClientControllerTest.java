@@ -3,11 +3,15 @@ package dev.crochard.spring_ai_lab.client;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
+
 import dev.crochard.spring_ai_lab.common.ConflictException;
+import dev.crochard.spring_ai_lab.common.NotFoundException;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,6 +70,34 @@ class ClientControllerTest {
 				"""))
 			.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.detail").value("Violation d'une contrainte d'intégrité des données"));
+	}
+
+	@Test
+	void findByIdReturnsClient() throws Exception {
+		when(clientService.findById(1L)).thenReturn(new ClientResponse(1L, "Ada", "Lovelace", "ada@example.com"));
+
+		mockMvc.perform(get("/api/clients/1"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.id").value(1))
+			.andExpect(jsonPath("$.email").value("ada@example.com"));
+	}
+
+	@Test
+	void mapsUnknownClientTo404() throws Exception {
+		when(clientService.findById(99L)).thenThrow(new NotFoundException("Client", 99L));
+
+		mockMvc.perform(get("/api/clients/99")).andExpect(status().isNotFound());
+	}
+
+	@Test
+	void findAllReturnsClients() throws Exception {
+		when(clientService.findAll()).thenReturn(List.of(new ClientResponse(1L, "Ada", "Lovelace", "ada@example.com"),
+				new ClientResponse(2L, "Alan", "Turing", "alan@example.com")));
+
+		mockMvc.perform(get("/api/clients"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.length()").value(2))
+			.andExpect(jsonPath("$[1].lastName").value("Turing"));
 	}
 
 }

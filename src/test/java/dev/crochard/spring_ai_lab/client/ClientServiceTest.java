@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Optional;
 
 import dev.crochard.spring_ai_lab.common.ConflictException;
@@ -75,6 +76,24 @@ class ClientServiceTest {
 		when(clientRepository.findById(42L)).thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> clientService.findById(42L)).isInstanceOf(NotFoundException.class);
+	}
+
+	@Test
+	void findByIdReturnsClient() {
+		when(clientRepository.findById(1L)).thenReturn(Optional.of(new Client("Ada", "Lovelace", "ada@example.com")));
+
+		ClientResponse response = clientService.findById(1L);
+
+		assertThat(response.firstName()).isEqualTo("Ada");
+		assertThat(response.email()).isEqualTo("ada@example.com");
+	}
+
+	@Test
+	void findAllReturnsAllClients() {
+		when(clientRepository.findAll()).thenReturn(List.of(new Client("Ada", "Lovelace", "ada@example.com"),
+				new Client("Alan", "Turing", "alan@example.com")));
+
+		assertThat(clientService.findAll()).extracting(ClientResponse::lastName).containsExactly("Lovelace", "Turing");
 	}
 
 }

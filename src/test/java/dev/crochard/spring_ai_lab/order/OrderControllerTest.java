@@ -4,8 +4,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -140,6 +142,81 @@ class OrderControllerTest {
 		mockMvc.perform(patch("/api/orders/7/status").contentType(MediaType.APPLICATION_JSON).content("{}"))
 			.andExpect(status().isBadRequest());
 		verifyNoInteractions(orderService);
+	}
+
+	@Test
+	void rejectsMissingLinesField() throws Exception {
+		mockMvc.perform(post("/api/orders").contentType(MediaType.APPLICATION_JSON).content("""
+				{"clientId": 1}
+				"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+			.andExpect(jsonPath("$.errors.lines").exists());
+		verifyNoInteractions(orderService);
+	}
+
+	@Test
+	void rejectsLineWithoutProduct() throws Exception {
+		mockMvc.perform(post("/api/orders").contentType(MediaType.APPLICATION_JSON).content("""
+				{"clientId": 1, "lines": [{"quantity": 1}]}
+				"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors['lines[0].productId']").exists());
+		verifyNoInteractions(orderService);
+	}
+
+	@Test
+	void rejectsNullLine() throws Exception {
+		mockMvc.perform(post("/api/orders").contentType(MediaType.APPLICATION_JSON).content("""
+				{"clientId": 1, "lines": [null]}
+				"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors['lines[0]']").exists());
+		verifyNoInteractions(orderService);
+	}
+
+	@Test
+	void rejectsMalformedJson() throws Exception {
+		mockMvc.perform(post("/api/orders").contentType(MediaType.APPLICATION_JSON).content("{\"clientId\": 1, "))
+			.andExpect(status().isBadRequest())
+			.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
+		verifyNoInteractions(orderService);
+	}
+
+	@Test
+	void mapsUnknownClientOrProductOnCreationTo404() throws Exception {
+		when(orderService.create(any())).thenThrow(new NotFoundException("Client", 99L));
+
+		mockMvc.perform(post("/api/orders").contentType(MediaType.APPLICATION_JSON).content("""
+				{"clientId": 99, "lines": [{"productId": 10, "quantity": 1}]}
+				"""))
+			.andExpect(status().isNotFound())
+			.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+			.andExpect(jsonPath("$.status").value(404))
+			.andExpect(jsonPath("$.detail").exists());
+	}
+
+	@Test
+	void findByIdReturnsOrder() throws Exception {
+		when(orderService.findById(7L)).thenReturn(new OrderResponse(7L, 1L, OrderStatus.CONFIRMED,
+				List.of(new OrderLineResponse(1L, 10L, "KB-01", "Clavier", 2, new BigDecimal("10.00"),
+						new BigDecimal("20.00"))),
+				new BigDecimal("20.00")));
+
+		mockMvc.perform(get("/api/orders/7"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("CONFIRMED"))
+			.andExpect(jsonPath("$.lines[0].productReference").value("KB-01"))
+			.andExpect(jsonPath("$.total").value(20.00));
+	}
+
+	@Test
+	void mapsUnknownOrderOnReadTo404() throws Exception {
+		when(orderService.findById(99L)).thenThrow(new NotFoundException("Commande", 99L));
+
+		mockMvc.perform(get("/api/orders/99"))
+			.andExpect(status().isNotFound())
+			.andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
 	}
 
 }

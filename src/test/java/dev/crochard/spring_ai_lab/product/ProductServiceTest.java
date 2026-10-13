@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import dev.crochard.spring_ai_lab.common.BusinessRuleViolationException;
@@ -78,6 +79,33 @@ class ProductServiceTest {
 
 		assertThatThrownBy(() -> productService.updateStatus(1L, new UpdateProductStatusRequest(false)))
 			.isInstanceOf(NotFoundException.class);
+	}
+
+	@Test
+	void findByIdReturnsProduct() {
+		when(productRepository.findById(1L))
+			.thenReturn(Optional.of(new Product("KB-01", "Clavier", new BigDecimal("49.99"), true)));
+
+		ProductResponse response = productService.findById(1L);
+
+		assertThat(response.reference()).isEqualTo("KB-01");
+		assertThat(response.price()).isEqualByComparingTo("49.99");
+	}
+
+	@Test
+	void findByIdFailsForUnknownProduct() {
+		when(productRepository.findById(1L)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> productService.findById(1L)).isInstanceOf(NotFoundException.class);
+	}
+
+	@Test
+	void findAllReturnsActiveAndInactiveProducts() {
+		when(productRepository.findAll()).thenReturn(
+				List.of(new Product("KB-01", "Clavier", new BigDecimal("49.99"), true),
+						new Product("OLD-01", "Ancien", new BigDecimal("5.00"), false)));
+
+		assertThat(productService.findAll()).extracting(ProductResponse::active).containsExactly(true, false);
 	}
 
 }

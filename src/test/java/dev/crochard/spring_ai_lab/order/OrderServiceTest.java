@@ -22,6 +22,9 @@ import dev.crochard.spring_ai_lab.product.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -179,6 +182,48 @@ class OrderServiceTest {
 		assertThatThrownBy(() -> orderService
 			.create(new CreateOrderRequest(1L, List.of(new OrderLineRequest(99L, 1)))))
 			.isInstanceOf(NotFoundException.class);
+		verify(orderRepository, never()).save(any());
+	}
+
+	@Test
+	void rejectsNegativeQuantity() {
+		when(clientRepository.findById(1L)).thenReturn(Optional.of(client));
+
+		assertThatThrownBy(() -> orderService
+			.create(new CreateOrderRequest(1L, List.of(new OrderLineRequest(10L, -1)))))
+			.isInstanceOf(BusinessRuleViolationException.class);
+		verify(orderRepository, never()).save(any());
+	}
+
+	@Test
+	void rejectsMissingQuantity() {
+		when(clientRepository.findById(1L)).thenReturn(Optional.of(client));
+
+		assertThatThrownBy(() -> orderService
+			.create(new CreateOrderRequest(1L, List.of(new OrderLineRequest(10L, null)))))
+			.isInstanceOf(BusinessRuleViolationException.class);
+		verify(orderRepository, never()).save(any());
+	}
+
+	@Test
+	void rejectsMissingLines() {
+		assertThatThrownBy(() -> orderService.create(new CreateOrderRequest(1L, null)))
+			.isInstanceOf(BusinessRuleViolationException.class);
+		verify(orderRepository, never()).save(any());
+	}
+
+	@Test
+	void rejectsInactiveProductAmongActiveOnes() {
+		Product inactive = withId(new Product("OLD-01", "Ancien", new BigDecimal("5.00"), false), 12L);
+		when(clientRepository.findById(1L)).thenReturn(Optional.of(client));
+		when(productRepository.findById(10L)).thenReturn(Optional.of(keyboard));
+		when(productRepository.findById(12L)).thenReturn(Optional.of(inactive));
+
+		assertThatThrownBy(() -> orderService.create(new CreateOrderRequest(1L,
+				List.of(new OrderLineRequest(10L, 1), new OrderLineRequest(12L, 1)))))
+			.isInstanceOf(BusinessRuleViolationException.class)
+			.hasMessageContaining("inactif");
+		verify(orderRepository, never()).save(any());
 	}
 
 	@Test
@@ -202,6 +247,54 @@ class OrderServiceTest {
 			.isInstanceOf(ConflictException.class)
 			.hasMessageContaining("CANCELLED -> CONFIRMED");
 		assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+	}
+
+	@ParameterizedTest(name = "{0} -> CANCELLED")
+	@EnumSource(value = OrderStatus.class, names = { "DRAFT", "CONFIRMED" })
+	void cancelsOrder(OrderStatus from) {
+		Order order = withId(new Order(client), 5L);
+		order.setStatus(from);
+		when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+
+		OrderResponse response = orderService.changeStatus(5L, OrderStatus.CANCELLED);
+
+		assertThat(response.status()).isEqualTo(OrderStatus.CANCELLED);
+		assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+	}
+
+	@Test
+	void rejectsDoubleCancellation() {
+		Order order = withId(new Order(client), 5L);
+		order.setStatus(OrderStatus.CANCELLED);
+		when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+
+		assertThatThrownBy(() -> orderService.changeStatus(5L, OrderStatus.CANCELLED))
+			.isInstanceOf(ConflictException.class)
+			.hasMessageContaining("CANCELLED -> CANCELLED");
+		assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+	}
+
+	@Test
+	void rejectsDoubleConfirmation() {
+		Order order = withId(new Order(client), 5L);
+		order.setStatus(OrderStatus.CONFIRMED);
+		when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+
+		assertThatThrownBy(() -> orderService.changeStatus(5L, OrderStatus.CONFIRMED))
+			.isInstanceOf(ConflictException.class)
+			.hasMessageContaining("CONFIRMED -> CONFIRMED");
+		assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+	}
+
+	@ParameterizedTest(name = "{0} -> {1} refusée")
+	@CsvSource({ "DRAFT, DRAFT", "CONFIRMED, DRAFT", "CANCELLED, DRAFT" })
+	void rejectsOtherForbiddenTransitionsAndKeepsStatus(OrderStatus from, OrderStatus to) {
+		Order order = withId(new Order(client), 5L);
+		order.setStatus(from);
+		when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+
+		assertThatThrownBy(() -> orderService.changeStatus(5L, to)).isInstanceOf(ConflictException.class);
+		assertThat(order.getStatus()).isEqualTo(from);
 	}
 
 	@Test
