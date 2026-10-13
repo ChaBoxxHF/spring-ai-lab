@@ -77,3 +77,14 @@ portant sur un même produit sont fusionnées (quantités additionnées).
 ./mvnw test      # tests unitaires et tests web (@WebMvcTest), sans Docker
 ./mvnw verify    # + tests d'intégration *IT sur PostgreSQL via Testcontainers (Docker requis)
 ```
+
+## Couverture de code
+
+Mesurée par JaCoCo, sans seuil bloquant. Les rapports HTML sont générés automatiquement :
+
+| Commande        | Rapport                                                                |
+|-----------------|------------------------------------------------------------------------|
+| `./mvnw test`   | `target/site/jacoco/index.html` (tests unitaires et web)               |
+| `./mvnw verify` | en plus : `target/site/jacoco-it/index.html` (intégration) et `target/site/jacoco-merged/index.html` (fusion) |
+
+`SpringAiLabApplication` et `OpenApiConfiguration` sont exclues du calcul.
