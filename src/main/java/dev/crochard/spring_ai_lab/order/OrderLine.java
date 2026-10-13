@@ -13,6 +13,10 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+/**
+ * Entité JPA d'une ligne de commande, persistée dans la table {@code order_lines}. Elle est créée via
+ * {@link Order#addLine(Product, int)}.
+ */
 @Entity
 @Table(name = "order_lines")
 public class OrderLine {
@@ -36,9 +40,18 @@ public class OrderLine {
 	@Column(name = "unit_price", nullable = false, precision = 19, scale = 2)
 	private BigDecimal unitPrice;
 
+	/**
+	 * Constructeur réservé à JPA.
+	 */
 	protected OrderLine() {
 	}
 
+	/**
+	 * @param order commande parente
+	 * @param product produit commandé
+	 * @param quantity quantité commandée
+	 * @param unitPrice prix unitaire figé au moment de la commande
+	 */
 	OrderLine(Order order, Product product, int quantity, BigDecimal unitPrice) {
 		this.order = order;
 		this.product = product;
@@ -46,23 +59,38 @@ public class OrderLine {
 		this.unitPrice = unitPrice;
 	}
 
-	/** Total ligne = quantité × prix unitaire. */
+	/**
+	 * Total ligne = quantité × prix unitaire.
+	 * @return le total de la ligne
+	 */
 	public BigDecimal lineTotal() {
 		return unitPrice.multiply(BigDecimal.valueOf(quantity));
 	}
 
+	/**
+	 * @return l'identifiant, {@code null} tant que la ligne n'est pas persistée
+	 */
 	public Long getId() {
 		return id;
 	}
 
+	/**
+	 * @return le produit commandé
+	 */
 	public Product getProduct() {
 		return product;
 	}
 
+	/**
+	 * @return la quantité commandée
+	 */
 	public int getQuantity() {
 		return quantity;
 	}
 
+	/**
+	 * @return le prix unitaire figé au moment de la commande
+	 */
 	public BigDecimal getUnitPrice() {
 		return unitPrice;
 	}
