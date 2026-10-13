@@ -1,0 +1,27 @@
+meta {
+  name: Confirmer une commande (DRAFT -> CONFIRMED)
+  type: http
+  seq: 11
+}
+
+patch {
+  url: {{baseUrl}}/api/orders/{{orderId}}/status
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "status": "CONFIRMED"
+  }
+}
+
+tests {
+  test("répond 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("la commande est confirmée", function() {
+    expect(res.body.status).to.equal("CONFIRMED");
+  });
+}

@@ -1,0 +1,23 @@
+meta {
+  name: Changer le statut d'une commande - statut inconnu
+  type: http
+  seq: 17
+}
+
+patch {
+  url: {{baseUrl}}/api/orders/{{orderId}}/status
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "status": "SHIPPED"
+  }
+}
+
+tests {
+  test("répond 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+}

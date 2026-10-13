@@ -1,0 +1,22 @@
+meta {
+  name: Lire un client
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/clients/{{clientId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("répond 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("renvoie le client demandé", function() {
+    expect(res.body.id).to.equal(bru.getVar("clientId"));
+    expect(res.body.email).to.equal(bru.getVar("clientEmail").toLowerCase());
+  });
+}

@@ -1,0 +1,29 @@
+meta {
+  name: Créer une commande - client manquant
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "lines": [
+      { "productId": {{keyboardId}}, "quantity": 1 }
+    ]
+  }
+}
+
+tests {
+  test("répond 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("signale le client en erreur", function() {
+    expect(res.body.errors).to.have.property("clientId");
+  });
+}

@@ -1,0 +1,28 @@
+meta {
+  name: Créer une commande - sans ligne
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "clientId": {{clientId}},
+    "lines": []
+  }
+}
+
+tests {
+  test("répond 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("signale les lignes en erreur", function() {
+    expect(res.body.errors).to.have.property("lines");
+  });
+}

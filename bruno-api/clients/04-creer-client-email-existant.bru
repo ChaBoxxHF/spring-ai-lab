@@ -1,0 +1,34 @@
+meta {
+  name: Créer un client - email déjà utilisé (casse différente)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/clients
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "firstName": "Jeanne",
+    "lastName": "Durand",
+    "email": "{{clientEmailUpper}}"
+  }
+}
+
+script:pre-request {
+  bru.setVar("clientEmailUpper", bru.getVar("clientEmail").toUpperCase());
+}
+
+tests {
+  test("répond 409 Conflict", function() {
+    expect(res.status).to.equal(409);
+  });
+
+  test("renvoie un ProblemDetail", function() {
+    expect(res.body.status).to.equal(409);
+    expect(res.body.detail).to.be.a("string");
+  });
+}

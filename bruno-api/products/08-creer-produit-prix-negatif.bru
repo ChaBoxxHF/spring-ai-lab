@@ -1,0 +1,30 @@
+meta {
+  name: Créer un produit - prix négatif
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/products
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "reference": "NEGATIF-{{productSuffix}}",
+    "name": "Produit négatif",
+    "price": -10.00,
+    "active": true
+  }
+}
+
+tests {
+  test("répond 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("signale le prix en erreur", function() {
+    expect(res.body.errors).to.have.property("price");
+  });
+}

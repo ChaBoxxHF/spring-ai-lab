@@ -1,0 +1,26 @@
+meta {
+  name: Créer une commande - client inexistant
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "clientId": {{unknownId}},
+    "lines": [
+      { "productId": {{keyboardId}}, "quantity": 1 }
+    ]
+  }
+}
+
+tests {
+  test("répond 404 Not Found", function() {
+    expect(res.status).to.equal(404);
+  });
+}

@@ -1,0 +1,47 @@
+meta {
+  name: Créer un produit actif (clavier)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/products
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "reference": "CLAVIER-{{productSuffix}}",
+    "name": "Clavier",
+    "price": 19.99,
+    "active": true
+  }
+}
+
+script:pre-request {
+  // Références uniques à chaque exécution
+  bru.setVar("productSuffix", Date.now());
+}
+
+script:post-response {
+  bru.setVar("keyboardId", res.body.id);
+}
+
+tests {
+  test("répond 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("renvoie l'en-tête Location", function() {
+    expect(res.getHeader("location")).to.match(new RegExp(`/api/products/${res.body.id}$`));
+  });
+
+  test("renvoie le produit créé", function() {
+    expect(res.body.id).to.be.a("number");
+    expect(res.body.reference).to.equal(`CLAVIER-${bru.getVar("productSuffix")}`);
+    expect(res.body.name).to.equal("Clavier");
+    expect(res.body.price).to.equal(19.99);
+    expect(res.body.active).to.equal(true);
+  });
+}

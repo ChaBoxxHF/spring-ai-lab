@@ -1,0 +1,60 @@
+meta {
+  name: Créer une commande (lignes fusionnées)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "clientId": {{clientId}},
+    "lines": [
+      { "productId": {{keyboardId}}, "quantity": 2 },
+      { "productId": {{mouseId}}, "quantity": 1 },
+      { "productId": {{keyboardId}}, "quantity": 3 }
+    ]
+  }
+}
+
+script:post-response {
+  bru.setVar("orderId", res.body.id);
+}
+
+tests {
+  test("répond 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("renvoie l'en-tête Location", function() {
+    expect(res.getHeader("location")).to.match(new RegExp(`/api/orders/${res.body.id}$`));
+  });
+
+  test("la commande est créée au statut DRAFT pour le client", function() {
+    expect(res.body.status).to.equal("DRAFT");
+    expect(res.body.clientId).to.equal(bru.getVar("clientId"));
+  });
+
+  test("fusionne les lignes d'un même produit en conservant l'ordre", function() {
+    expect(res.body.lines).to.have.lengthOf(2);
+    expect(res.body.lines[0].productId).to.equal(bru.getVar("keyboardId"));
+    expect(res.body.lines[0].quantity).to.equal(5);
+    expect(res.body.lines[1].productId).to.equal(bru.getVar("mouseId"));
+    expect(res.body.lines[1].quantity).to.equal(1);
+  });
+
+  test("mémorise le prix unitaire du produit", function() {
+    expect(res.body.lines[0].unitPrice).to.equal(19.99);
+    expect(res.body.lines[1].unitPrice).to.equal(5.5);
+  });
+
+  test("calcule les totaux de ligne et de commande", function() {
+    expect(res.body.lines[0].lineTotal).to.equal(99.95);
+    expect(res.body.lines[1].lineTotal).to.equal(5.5);
+    expect(res.body.total).to.equal(105.45);
+  });
+}

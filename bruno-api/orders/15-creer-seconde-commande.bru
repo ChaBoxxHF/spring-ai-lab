@@ -1,0 +1,35 @@
+meta {
+  name: Créer une seconde commande
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "clientId": {{clientId}},
+    "lines": [
+      { "productId": {{mouseId}}, "quantity": 4 }
+    ]
+  }
+}
+
+script:post-response {
+  bru.setVar("draftOrderId", res.body.id);
+}
+
+tests {
+  test("répond 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("la commande est au statut DRAFT", function() {
+    expect(res.body.status).to.equal("DRAFT");
+    expect(res.body.total).to.equal(22);
+  });
+}

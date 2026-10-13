@@ -1,0 +1,26 @@
+meta {
+  name: Créer un produit - référence déjà utilisée
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/products
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "reference": "CLAVIER-{{productSuffix}}",
+    "name": "Autre clavier",
+    "price": 29.99,
+    "active": true
+  }
+}
+
+tests {
+  test("répond 409 Conflict", function() {
+    expect(res.status).to.equal(409);
+  });
+}

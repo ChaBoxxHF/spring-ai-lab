@@ -1,0 +1,28 @@
+meta {
+  name: Activer un produit
+  type: http
+  seq: 11
+}
+
+patch {
+  url: {{baseUrl}}/api/products/{{inactiveProductId}}/status
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "active": true
+  }
+}
+
+tests {
+  test("répond 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("le produit est actif", function() {
+    expect(res.body.id).to.equal(bru.getVar("inactiveProductId"));
+    expect(res.body.active).to.equal(true);
+  });
+}

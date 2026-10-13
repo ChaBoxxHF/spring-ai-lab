@@ -1,0 +1,35 @@
+meta {
+  name: Créer un produit actif (souris)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/products
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "reference": "SOURIS-{{productSuffix}}",
+    "name": "Souris",
+    "price": 5.50,
+    "active": true
+  }
+}
+
+script:post-response {
+  bru.setVar("mouseId", res.body.id);
+}
+
+tests {
+  test("répond 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("renvoie le produit créé", function() {
+    expect(res.body.price).to.equal(5.5);
+    expect(res.body.active).to.equal(true);
+  });
+}

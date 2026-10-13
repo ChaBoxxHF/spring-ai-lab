@@ -1,0 +1,27 @@
+meta {
+  name: Désactiver un produit
+  type: http
+  seq: 12
+}
+
+patch {
+  url: {{baseUrl}}/api/products/{{inactiveProductId}}/status
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "active": false
+  }
+}
+
+tests {
+  test("répond 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("le produit est inactif", function() {
+    expect(res.body.active).to.equal(false);
+  });
+}

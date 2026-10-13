@@ -1,0 +1,21 @@
+meta {
+  name: Lister les commandes
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/orders
+  body: none
+  auth: none
+}
+
+tests {
+  test("répond 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("contient la commande créée", function() {
+    expect(res.body.map(o => o.id)).to.include(bru.getVar("orderId"));
+  });
+}

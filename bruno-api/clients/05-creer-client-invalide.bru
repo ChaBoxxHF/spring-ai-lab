@@ -1,0 +1,31 @@
+meta {
+  name: Créer un client - requête invalide
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/clients
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "firstName": "",
+    "lastName": "Dupont",
+    "email": "pas-un-email"
+  }
+}
+
+tests {
+  test("répond 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("détaille les champs en erreur", function() {
+    expect(res.body.errors).to.have.property("firstName");
+    expect(res.body.errors).to.have.property("email");
+    expect(res.body.errors).to.not.have.property("lastName");
+  });
+}

@@ -1,0 +1,744 @@
+### Tests d'API de bout en bout (client HTTP IntelliJ).
+### Mêmes scénarios que la collection Bruno (bruno-api/). À exécuter dans l'ordre, de haut en bas :
+### les commandes réutilisent le client et les produits créés plus haut.
+
+@baseUrl = http://localhost:8080
+@unknownId = 999999999
+
+#####################################################################
+# Clients
+#####################################################################
+
+### Créer un client
+< {%
+    // Email unique à chaque exécution, en casse mixte pour vérifier la mise en minuscules
+    const email = "Jean.Dupont." + Date.now() + "@Example.COM";
+    client.global.set("clientEmail", email);
+    client.global.set("clientEmailUpper", email.toUpperCase());
+%}
+POST {{baseUrl}}/api/clients
+Content-Type: application/json
+
+{
+  "firstName": "Jean",
+  "lastName": "Dupont",
+  "email": "{{clientEmail}}"
+}
+
+> {%
+    client.test("répond 201 Created", function () {
+        client.assert(response.status === 201, "statut " + response.status);
+    });
+    client.test("renvoie l'en-tête Location", function () {
+        client.assert(response.headers.valueOf("Location").endsWith("/api/clients/" + response.body.id));
+    });
+    client.test("renvoie le client créé", function () {
+        client.assert(typeof response.body.id === "number");
+        client.assert(response.body.firstName === "Jean");
+        client.assert(response.body.lastName === "Dupont");
+    });
+    client.test("enregistre l'email en minuscules", function () {
+        client.assert(response.body.email === client.global.get("clientEmail").toLowerCase(), response.body.email);
+    });
+    client.global.set("clientId", response.body.id);
+%}
+
+### Lire un client
+GET {{baseUrl}}/api/clients/{{clientId}}
+
+> {%
+    client.test("répond 200 OK", function () {
+        client.assert(response.status === 200, "statut " + response.status);
+    });
+    client.test("renvoie le client demandé", function () {
+        client.assert(Number(response.body.id) === Number(client.global.get("clientId")));
+        client.assert(response.body.email === client.global.get("clientEmail").toLowerCase());
+    });
+%}
+
+### Lister les clients
+GET {{baseUrl}}/api/clients
+
+> {%
+    client.test("répond 200 OK", function () {
+        client.assert(response.status === 200, "statut " + response.status);
+    });
+    client.test("contient le client créé", function () {
+        client.assert(response.body.some(c => Number(c.id) === Number(client.global.get("clientId"))));
+    });
+%}
+
+### Créer un client - email déjà utilisé (casse différente)
+POST {{baseUrl}}/api/clients
+Content-Type: application/json
+
+{
+  "firstName": "Jeanne",
+  "lastName": "Durand",
+  "email": "{{clientEmailUpper}}"
+}
+
+> {%
+    client.test("répond 409 Conflict", function () {
+        client.assert(response.status === 409, "statut " + response.status);
+    });
+%}
+
+### Créer un client - requête invalide
+POST {{baseUrl}}/api/clients
+Content-Type: application/json
+
+{
+  "firstName": "",
+  "lastName": "Dupont",
+  "email": "pas-un-email"
+}
+
+> {%
+    client.test("répond 400 Bad Request", function () {
+        client.assert(response.status === 400, "statut " + response.status);
+    });
+    client.test("détaille les champs en erreur", function () {
+        const errors = response.body.errors;
+        client.assert("firstName" in errors && "email" in errors && !("lastName" in errors), JSON.stringify(errors));
+    });
+%}
+
+### Lire un client - inexistant
+GET {{baseUrl}}/api/clients/{{unknownId}}
+
+> {%
+    client.test("répond 404 Not Found", function () {
+        client.assert(response.status === 404, "statut " + response.status);
+    });
+%}
+
+#####################################################################
+# Produits
+#####################################################################
+
+### Créer un produit actif (clavier)
+< {%
+    // Références uniques à chaque exécution
+    client.global.set("productSuffix", String(Date.now()));
+%}
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "reference": "CLAVIER-{{productSuffix}}",
+  "name": "Clavier",
+  "price": 19.99,
+  "active": true
+}
+
+> {%
+    client.test("répond 201 Created", function () {
+        client.assert(response.status === 201, "statut " + response.status);
+    });
+    client.test("renvoie l'en-tête Location", function () {
+        client.assert(response.headers.valueOf("Location").endsWith("/api/products/" + response.body.id));
+    });
+    client.test("renvoie le produit créé", function () {
+        client.assert(response.body.reference === "CLAVIER-" + client.global.get("productSuffix"));
+        client.assert(response.body.name === "Clavier");
+        client.assert(response.body.price === 19.99);
+        client.assert(response.body.active === true);
+    });
+    client.global.set("keyboardId", response.body.id);
+%}
+
+### Créer un produit actif (souris)
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "reference": "SOURIS-{{productSuffix}}",
+  "name": "Souris",
+  "price": 5.50,
+  "active": true
+}
+
+> {%
+    client.test("répond 201 Created", function () {
+        client.assert(response.status === 201, "statut " + response.status);
+    });
+    client.test("renvoie le produit créé", function () {
+        client.assert(response.body.price === 5.5);
+        client.assert(response.body.active === true);
+    });
+    client.global.set("mouseId", response.body.id);
+%}
+
+### Créer un produit inactif (écran)
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "reference": "ECRAN-{{productSuffix}}",
+  "name": "Écran",
+  "price": 149.00,
+  "active": false
+}
+
+> {%
+    client.test("répond 201 Created", function () {
+        client.assert(response.status === 201, "statut " + response.status);
+    });
+    client.test("le produit est inactif", function () {
+        client.assert(response.body.active === false);
+    });
+    client.global.set("inactiveProductId", response.body.id);
+%}
+
+### Lire un produit
+GET {{baseUrl}}/api/products/{{keyboardId}}
+
+> {%
+    client.test("répond 200 OK", function () {
+        client.assert(response.status === 200, "statut " + response.status);
+    });
+    client.test("renvoie le produit demandé", function () {
+        client.assert(Number(response.body.id) === Number(client.global.get("keyboardId")));
+        client.assert(response.body.price === 19.99);
+    });
+%}
+
+### Lister les produits
+GET {{baseUrl}}/api/products
+
+> {%
+    client.test("répond 200 OK", function () {
+        client.assert(response.status === 200, "statut " + response.status);
+    });
+    client.test("contient les produits créés", function () {
+        const ids = response.body.map(p => Number(p.id));
+        ["keyboardId", "mouseId", "inactiveProductId"].forEach(name =>
+            client.assert(ids.includes(Number(client.global.get(name))), name + " absent"));
+    });
+%}
+
+### Créer un produit - référence déjà utilisée
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "reference": "CLAVIER-{{productSuffix}}",
+  "name": "Autre clavier",
+  "price": 29.99,
+  "active": true
+}
+
+> {%
+    client.test("répond 409 Conflict", function () {
+        client.assert(response.status === 409, "statut " + response.status);
+    });
+%}
+
+### Créer un produit - prix nul
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "reference": "GRATUIT-{{productSuffix}}",
+  "name": "Produit gratuit",
+  "price": 0,
+  "active": true
+}
+
+> {%
+    client.test("répond 400 Bad Request", function () {
+        client.assert(response.status === 400, "statut " + response.status);
+    });
+    client.test("signale le prix en erreur", function () {
+        client.assert("price" in response.body.errors);
+    });
+%}
+
+### Créer un produit - prix négatif
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "reference": "NEGATIF-{{productSuffix}}",
+  "name": "Produit négatif",
+  "price": -10.00,
+  "active": true
+}
+
+> {%
+    client.test("répond 400 Bad Request", function () {
+        client.assert(response.status === 400, "statut " + response.status);
+    });
+    client.test("signale le prix en erreur", function () {
+        client.assert("price" in response.body.errors);
+    });
+%}
+
+### Créer un produit - prix à trois décimales
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "reference": "DECIMALES-{{productSuffix}}",
+  "name": "Produit trop précis",
+  "price": 9.999,
+  "active": true
+}
+
+> {%
+    client.test("répond 400 Bad Request", function () {
+        client.assert(response.status === 400, "statut " + response.status);
+    });
+    client.test("signale le prix en erreur", function () {
+        client.assert("price" in response.body.errors);
+    });
+%}
+
+### Créer un produit - champs manquants
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "reference": "",
+  "name": ""
+}
+
+> {%
+    client.test("répond 400 Bad Request", function () {
+        client.assert(response.status === 400, "statut " + response.status);
+    });
+    client.test("détaille tous les champs en erreur", function () {
+        const keys = Object.keys(response.body.errors).sort().join(",");
+        client.assert(keys === "active,name,price,reference", keys);
+    });
+%}
+
+### Activer un produit
+PATCH {{baseUrl}}/api/products/{{inactiveProductId}}/status
+Content-Type: application/json
+
+{
+  "active": true
+}
+
+> {%
+    client.test("répond 200 OK", function () {
+        client.assert(response.status === 200, "statut " + response.status);
+    });
+    client.test("le produit est actif", function () {
+        client.assert(Number(response.body.id) === Number(client.global.get("inactiveProductId")));
+        client.assert(response.body.active === true);
+    });
+%}
+
+### Désactiver un produit
+PATCH {{baseUrl}}/api/products/{{inactiveProductId}}/status
+Content-Type: application/json
+
+{
+  "active": false
+}
+
+> {%
+    client.test("répond 200 OK", function () {
+        client.assert(response.status === 200, "statut " + response.status);
+    });
+    client.test("le produit est inactif", function () {
+        client.assert(response.body.active === false);
+    });
+%}
+
+### Changer le statut d'un produit - valeur manquante
+PATCH {{baseUrl}}/api/products/{{keyboardId}}/status
+Content-Type: application/json
+
+{}
+
+> {%
+    client.test("répond 400 Bad Request", function () {
+        client.assert(response.status === 400, "statut " + response.status);
+    });
+    client.test("signale le champ active en erreur", function () {
+        client.assert("active" in response.body.errors);
+    });
+%}
+
+### Changer le statut d'un produit - inexistant
+PATCH {{baseUrl}}/api/products/{{unknownId}}/status
+Content-Type: application/json
+
+{
+  "active": true
+}
+
+> {%
+    client.test("répond 404 Not Found", function () {
+        client.assert(response.status === 404, "statut " + response.status);
+    });
+%}
+
+### Lire un produit - inexistant
+GET {{baseUrl}}/api/products/{{unknownId}}
+
+> {%
+    client.test("répond 404 Not Found", function () {
+        client.assert(response.status === 404, "statut " + response.status);
+    });
+%}
+
+#####################################################################
+# Commandes
+#####################################################################
+
+### Créer une commande (lignes fusionnées)
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "clientId": {{clientId}},
+  "lines": [
+    { "productId": {{keyboardId}}, "quantity": 2 },
+    { "productId": {{mouseId}}, "quantity": 1 },
+    { "productId": {{keyboardId}}, "quantity": 3 }
+  ]
+}
+
+> {%
+    const order = response.body;
+    client.test("répond 201 Created", function () {
+        client.assert(response.status === 201, "statut " + response.status);
+    });
+    client.test("renvoie l'en-tête Location", function () {
+        client.assert(response.headers.valueOf("Location").endsWith("/api/orders/" + order.id));
+    });
+    client.test("la commande est créée au statut DRAFT pour le client", function () {
+        client.assert(order.status === "DRAFT", order.status);
+        client.assert(Number(order.clientId) === Number(client.global.get("clientId")));
+    });
+    client.test("fusionne les lignes d'un même produit en conservant l'ordre", function () {
+        client.assert(order.lines.length === 2, "lignes : " + order.lines.length);
+        client.assert(Number(order.lines[0].productId) === Number(client.global.get("keyboardId")));
+        client.assert(order.lines[0].quantity === 5);
+        client.assert(Number(order.lines[1].productId) === Number(client.global.get("mouseId")));
+        client.assert(order.lines[1].quantity === 1);
+    });
+    client.test("mémorise le prix unitaire du produit", function () {
+        client.assert(order.lines[0].unitPrice === 19.99);
+        client.assert(order.lines[1].unitPrice === 5.5);
+    });
+    client.test("calcule les totaux de ligne et de commande", function () {
+        client.assert(order.lines[0].lineTotal === 99.95, String(order.lines[0].lineTotal));
+        client.assert(order.lines[1].lineTotal === 5.5, String(order.lines[1].lineTotal));
+        client.assert(order.total === 105.45, String(order.total));
+    });
+    client.global.set("orderId", order.id);
+%}
+
+### Lire une commande
+GET {{baseUrl}}/api/orders/{{orderId}}
+
+> {%
+    client.test("répond 200 OK", function () {
+        client.assert(response.status === 200, "statut " + response.status);
+    });
+    client.test("renvoie la commande demandée", function () {
+        client.assert(Number(response.body.id) === Number(client.global.get("orderId")));
+        client.assert(response.body.status === "DRAFT");
+        client.assert(response.body.lines.length === 2);
+        client.assert(response.body.total === 105.45);
+    });
+%}
+
+### Lister les commandes
+GET {{baseUrl}}/api/orders
+
+> {%
+    client.test("répond 200 OK", function () {
+        client.assert(response.status === 200, "statut " + response.status);
+    });
+    client.test("contient la commande créée", function () {
+        client.assert(response.body.some(o => Number(o.id) === Number(client.global.get("orderId"))));
+    });
+%}
+
+### Créer une commande - produit inactif
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "clientId": {{clientId}},
+  "lines": [
+    { "productId": {{inactiveProductId}}, "quantity": 1 }
+  ]
+}
+
+> {%
+    client.test("répond 422 Unprocessable Content", function () {
+        client.assert(response.status === 422, "statut " + response.status);
+    });
+%}
+
+### Créer une commande - client inexistant
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "clientId": {{unknownId}},
+  "lines": [
+    { "productId": {{keyboardId}}, "quantity": 1 }
+  ]
+}
+
+> {%
+    client.test("répond 404 Not Found", function () {
+        client.assert(response.status === 404, "statut " + response.status);
+    });
+%}
+
+### Créer une commande - produit inexistant
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "clientId": {{clientId}},
+  "lines": [
+    { "productId": {{unknownId}}, "quantity": 1 }
+  ]
+}
+
+> {%
+    client.test("répond 404 Not Found", function () {
+        client.assert(response.status === 404, "statut " + response.status);
+    });
+%}
+
+### Créer une commande - sans ligne
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "clientId": {{clientId}},
+  "lines": []
+}
+
+> {%
+    client.test("répond 400 Bad Request", function () {
+        client.assert(response.status === 400, "statut " + response.status);
+    });
+    client.test("signale les lignes en erreur", function () {
+        client.assert("lines" in response.body.errors);
+    });
+%}
+
+### Créer une commande - quantité nulle
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "clientId": {{clientId}},
+  "lines": [
+    { "productId": {{keyboardId}}, "quantity": 0 }
+  ]
+}
+
+> {%
+    client.test("répond 400 Bad Request", function () {
+        client.assert(response.status === 400, "statut " + response.status);
+    });
+    client.test("signale la quantité en erreur", function () {
+        client.assert("lines[0].quantity" in response.body.errors);
+    });
+%}
+
+### Créer une commande - quantité négative
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "clientId": {{clientId}},
+  "lines": [
+    { "productId": {{keyboardId}}, "quantity": -2 }
+  ]
+}
+
+> {%
+    client.test("répond 400 Bad Request", function () {
+        client.assert(response.status === 400, "statut " + response.status);
+    });
+    client.test("signale la quantité en erreur", function () {
+        client.assert("lines[0].quantity" in response.body.errors);
+    });
+%}
+
+### Créer une commande - client manquant
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "lines": [
+    { "productId": {{keyboardId}}, "quantity": 1 }
+  ]
+}
+
+> {%
+    client.test("répond 400 Bad Request", function () {
+        client.assert(response.status === 400, "statut " + response.status);
+    });
+    client.test("signale le client en erreur", function () {
+        client.assert("clientId" in response.body.errors);
+    });
+%}
+
+### Confirmer une commande (DRAFT -> CONFIRMED)
+PATCH {{baseUrl}}/api/orders/{{orderId}}/status
+Content-Type: application/json
+
+{
+  "status": "CONFIRMED"
+}
+
+> {%
+    client.test("répond 200 OK", function () {
+        client.assert(response.status === 200, "statut " + response.status);
+    });
+    client.test("la commande est confirmée", function () {
+        client.assert(response.body.status === "CONFIRMED");
+    });
+%}
+
+### Transition interdite (CONFIRMED -> DRAFT)
+PATCH {{baseUrl}}/api/orders/{{orderId}}/status
+Content-Type: application/json
+
+{
+  "status": "DRAFT"
+}
+
+> {%
+    client.test("répond 409 Conflict", function () {
+        client.assert(response.status === 409, "statut " + response.status);
+    });
+%}
+
+### Annuler une commande confirmée (CONFIRMED -> CANCELLED)
+PATCH {{baseUrl}}/api/orders/{{orderId}}/status
+Content-Type: application/json
+
+{
+  "status": "CANCELLED"
+}
+
+> {%
+    client.test("répond 200 OK", function () {
+        client.assert(response.status === 200, "statut " + response.status);
+    });
+    client.test("la commande est annulée", function () {
+        client.assert(response.body.status === "CANCELLED");
+    });
+%}
+
+### Transition interdite (CANCELLED -> CONFIRMED)
+PATCH {{baseUrl}}/api/orders/{{orderId}}/status
+Content-Type: application/json
+
+{
+  "status": "CONFIRMED"
+}
+
+> {%
+    client.test("répond 409 Conflict", function () {
+        client.assert(response.status === 409, "statut " + response.status);
+    });
+%}
+
+### Créer une seconde commande
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "clientId": {{clientId}},
+  "lines": [
+    { "productId": {{mouseId}}, "quantity": 4 }
+  ]
+}
+
+> {%
+    client.test("répond 201 Created", function () {
+        client.assert(response.status === 201, "statut " + response.status);
+    });
+    client.test("la commande est au statut DRAFT", function () {
+        client.assert(response.body.status === "DRAFT");
+        client.assert(response.body.total === 22, String(response.body.total));
+    });
+    client.global.set("draftOrderId", response.body.id);
+%}
+
+### Annuler une commande brouillon (DRAFT -> CANCELLED)
+PATCH {{baseUrl}}/api/orders/{{draftOrderId}}/status
+Content-Type: application/json
+
+{
+  "status": "CANCELLED"
+}
+
+> {%
+    client.test("répond 200 OK", function () {
+        client.assert(response.status === 200, "statut " + response.status);
+    });
+    client.test("la commande est annulée", function () {
+        client.assert(response.body.status === "CANCELLED");
+    });
+%}
+
+### Changer le statut d'une commande - statut inconnu
+PATCH {{baseUrl}}/api/orders/{{orderId}}/status
+Content-Type: application/json
+
+{
+  "status": "SHIPPED"
+}
+
+> {%
+    client.test("répond 400 Bad Request", function () {
+        client.assert(response.status === 400, "statut " + response.status);
+    });
+%}
+
+### Changer le statut d'une commande - statut manquant
+PATCH {{baseUrl}}/api/orders/{{orderId}}/status
+Content-Type: application/json
+
+{}
+
+> {%
+    client.test("répond 400 Bad Request", function () {
+        client.assert(response.status === 400, "statut " + response.status);
+    });
+    client.test("signale le statut en erreur", function () {
+        client.assert("status" in response.body.errors);
+    });
+%}
+
+### Changer le statut d'une commande - inexistante
+PATCH {{baseUrl}}/api/orders/{{unknownId}}/status
+Content-Type: application/json
+
+{
+  "status": "CONFIRMED"
+}
+
+> {%
+    client.test("répond 404 Not Found", function () {
+        client.assert(response.status === 404, "statut " + response.status);
+    });
+%}
+
+### Lire une commande - inexistante
+GET {{baseUrl}}/api/orders/{{unknownId}}
+
+> {%
+    client.test("répond 404 Not Found", function () {
+        client.assert(response.status === 404, "statut " + response.status);
+    });
+%}

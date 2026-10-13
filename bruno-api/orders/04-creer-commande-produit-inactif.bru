@@ -1,0 +1,26 @@
+meta {
+  name: Créer une commande - produit inactif
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/orders
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "clientId": {{clientId}},
+    "lines": [
+      { "productId": {{inactiveProductId}}, "quantity": 1 }
+    ]
+  }
+}
+
+tests {
+  test("répond 422 Unprocessable Content", function() {
+    expect(res.status).to.equal(422);
+  });
+}

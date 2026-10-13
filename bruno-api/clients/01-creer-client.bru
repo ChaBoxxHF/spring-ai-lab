@@ -1,0 +1,48 @@
+meta {
+  name: Créer un client
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/clients
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "firstName": "Pascal",
+    "lastName": "Crochard",
+    "email": "{{clientEmail}}"
+  }
+}
+
+script:pre-request {
+  // Email unique à chaque exécution, en casse mixte pour vérifier la mise en minuscules
+  bru.setVar("clientEmail", `Pascal.Crochard.${Date.now()}@Example.COM`);
+}
+
+script:post-response {
+  bru.setVar("clientId", res.body.id);
+}
+
+tests {
+  test("répond 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+  
+  test("renvoie l'en-tête Location", function() {
+    expect(res.getHeader("location")).to.match(new RegExp(`/api/clients/${res.body.id}$`));
+  });
+  
+  test("renvoie le client créé", function() {
+    expect(res.body.id).to.be.a("number");
+    expect(res.body.firstName).to.equal("Jean");
+    expect(res.body.lastName).to.equal("Dupont");
+  });
+  
+  test("enregistre l'email en minuscules", function() {
+    expect(res.body.email).to.equal(bru.getVar("clientEmail").toLowerCase());
+  });
+}

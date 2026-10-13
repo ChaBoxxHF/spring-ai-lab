@@ -1,0 +1,27 @@
+meta {
+  name: Annuler une commande brouillon (DRAFT -> CANCELLED)
+  type: http
+  seq: 16
+}
+
+patch {
+  url: {{baseUrl}}/api/orders/{{draftOrderId}}/status
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "status": "CANCELLED"
+  }
+}
+
+tests {
+  test("répond 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("la commande est annulée", function() {
+    expect(res.body.status).to.equal("CANCELLED");
+  });
+}

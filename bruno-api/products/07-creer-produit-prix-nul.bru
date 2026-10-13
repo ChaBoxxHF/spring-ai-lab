@@ -1,0 +1,30 @@
+meta {
+  name: Créer un produit - prix nul
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/products
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "reference": "GRATUIT-{{productSuffix}}",
+    "name": "Produit gratuit",
+    "price": 0,
+    "active": true
+  }
+}
+
+tests {
+  test("répond 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("signale le prix en erreur", function() {
+    expect(res.body.errors).to.have.property("price");
+  });
+}

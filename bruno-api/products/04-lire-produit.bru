@@ -1,0 +1,22 @@
+meta {
+  name: Lire un produit
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/products/{{keyboardId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("répond 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("renvoie le produit demandé", function() {
+    expect(res.body.id).to.equal(bru.getVar("keyboardId"));
+    expect(res.body.price).to.equal(19.99);
+  });
+}

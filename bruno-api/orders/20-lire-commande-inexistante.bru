@@ -1,0 +1,17 @@
+meta {
+  name: Lire une commande - inexistante
+  type: http
+  seq: 20
+}
+
+get {
+  url: {{baseUrl}}/api/orders/{{unknownId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("répond 404 Not Found", function() {
+    expect(res.status).to.equal(404);
+  });
+}

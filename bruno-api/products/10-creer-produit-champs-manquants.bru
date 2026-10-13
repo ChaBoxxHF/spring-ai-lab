@@ -1,0 +1,28 @@
+meta {
+  name: Créer un produit - champs manquants
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/api/products
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "reference": "",
+    "name": ""
+  }
+}
+
+tests {
+  test("répond 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("détaille tous les champs en erreur", function() {
+    expect(res.body.errors).to.have.all.keys("reference", "name", "price", "active");
+  });
+}

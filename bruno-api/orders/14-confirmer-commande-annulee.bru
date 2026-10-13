@@ -1,0 +1,23 @@
+meta {
+  name: Transition interdite (CANCELLED -> CONFIRMED)
+  type: http
+  seq: 14
+}
+
+patch {
+  url: {{baseUrl}}/api/orders/{{orderId}}/status
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "status": "CONFIRMED"
+  }
+}
+
+tests {
+  test("répond 409 Conflict", function() {
+    expect(res.status).to.equal(409);
+  });
+}

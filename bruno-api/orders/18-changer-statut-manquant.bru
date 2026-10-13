@@ -1,0 +1,25 @@
+meta {
+  name: Changer le statut d'une commande - statut manquant
+  type: http
+  seq: 18
+}
+
+patch {
+  url: {{baseUrl}}/api/orders/{{orderId}}/status
+  body: json
+  auth: none
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("répond 400 Bad Request", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("signale le statut en erreur", function() {
+    expect(res.body.errors).to.have.property("status");
+  });
+}

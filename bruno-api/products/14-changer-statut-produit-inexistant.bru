@@ -1,0 +1,23 @@
+meta {
+  name: Changer le statut d'un produit - inexistant
+  type: http
+  seq: 14
+}
+
+patch {
+  url: {{baseUrl}}/api/products/{{unknownId}}/status
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "active": true
+  }
+}
+
+tests {
+  test("répond 404 Not Found", function() {
+    expect(res.status).to.equal(404);
+  });
+}

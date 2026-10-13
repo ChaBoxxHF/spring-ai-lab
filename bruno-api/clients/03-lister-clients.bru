@@ -1,0 +1,22 @@
+meta {
+  name: Lister les clients
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/clients
+  body: none
+  auth: none
+}
+
+tests {
+  test("répond 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("contient le client créé", function() {
+    expect(res.body).to.be.an("array");
+    expect(res.body.map(c => c.id)).to.include(bru.getVar("clientId"));
+  });
+}

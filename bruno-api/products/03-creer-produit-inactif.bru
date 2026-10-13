@@ -1,0 +1,34 @@
+meta {
+  name: Créer un produit inactif (écran)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/products
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "reference": "ECRAN-{{productSuffix}}",
+    "name": "Écran",
+    "price": 149.00,
+    "active": false
+  }
+}
+
+script:post-response {
+  bru.setVar("inactiveProductId", res.body.id);
+}
+
+tests {
+  test("répond 201 Created", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("le produit est inactif", function() {
+    expect(res.body.active).to.equal(false);
+  });
+}

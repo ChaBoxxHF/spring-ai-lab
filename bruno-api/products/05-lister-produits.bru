@@ -1,0 +1,24 @@
+meta {
+  name: Lister les produits
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/products
+  body: none
+  auth: none
+}
+
+tests {
+  test("répond 200 OK", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("contient les produits créés", function() {
+    const ids = res.body.map(p => p.id);
+    expect(ids).to.include(bru.getVar("keyboardId"));
+    expect(ids).to.include(bru.getVar("mouseId"));
+    expect(ids).to.include(bru.getVar("inactiveProductId"));
+  });
+}

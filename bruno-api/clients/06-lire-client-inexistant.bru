@@ -1,0 +1,17 @@
+meta {
+  name: Lire un client - inexistant
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/clients/{{unknownId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("répond 404 Not Found", function() {
+    expect(res.status).to.equal(404);
+  });
+}
