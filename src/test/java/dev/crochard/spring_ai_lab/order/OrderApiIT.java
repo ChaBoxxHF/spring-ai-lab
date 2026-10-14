@@ -113,6 +113,42 @@ class OrderApiIT {
 	}
 
 	@Test
+	void reactivatedProductCanBeOrderedAgain() throws Exception {
+		long clientId = createClient();
+		long productId = createProduct("10.00", true);
+		String order = """
+				{"clientId": %d, "lines": [{"productId": %d, "quantity": 1}]}
+				""".formatted(clientId, productId);
+
+		deactivate(productId);
+		postJson("/api/orders", order).andExpect(status().isUnprocessableContent());
+
+		activate(productId);
+		postJson("/api/orders", order).andExpect(status().isCreated())
+			.andExpect(jsonPath("$.lines[0].productId").value(productId));
+	}
+
+	@Test
+	void rejectsMergedQuantityOverflowAndPersistsNothing() throws Exception {
+		long clientId = createClient();
+		long productId = createProduct("10.00", true);
+		int ordersBefore = count("orders");
+		int linesBefore = count("order_lines");
+
+		postJson("/api/orders", """
+				{"clientId": %d, "lines": [
+					{"productId": %d, "quantity": 2147483647},
+					{"productId": %d, "quantity": 1}]}
+				""".formatted(clientId, productId, productId))
+			.andExpect(status().isUnprocessableContent())
+			.andExpect(jsonPath("$.detail").value(
+					"La quantité cumulée du produit " + productId + " dépasse la valeur maximale autorisée"));
+
+		assertThat(count("orders")).isEqualTo(ordersBefore);
+		assertThat(count("order_lines")).isEqualTo(linesBefore);
+	}
+
+	@Test
 	void listsOrdersWithLinesOutsideTransaction() throws Exception {
 		long orderId = createOrder();
 
@@ -337,10 +373,18 @@ class OrderApiIT {
 	}
 
 	private void deactivate(long productId) throws Exception {
+		setActive(productId, false);
+	}
+
+	private void activate(long productId) throws Exception {
+		setActive(productId, true);
+	}
+
+	private void setActive(long productId, boolean active) throws Exception {
 		mockMvc.perform(patch("/api/products/{id}/status", productId).contentType(MediaType.APPLICATION_JSON)
-			.content("{\"active\": false}"))
+			.content("{\"active\": %s}".formatted(active)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.active").value(false));
+			.andExpect(jsonPath("$.active").value(active));
 	}
 
 	private int count(String table) {

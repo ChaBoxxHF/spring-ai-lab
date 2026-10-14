@@ -74,6 +74,17 @@ class ProductServiceTest {
 	}
 
 	@Test
+	void activatesProduct() {
+		Product product = new Product("OLD-01", "Ancien", new BigDecimal("5.00"), false);
+		when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+
+		ProductResponse response = productService.updateStatus(1L, new UpdateProductStatusRequest(true));
+
+		assertThat(response.active()).isTrue();
+		assertThat(product.isActive()).isTrue();
+	}
+
+	@Test
 	void updateStatusFailsForUnknownProduct() {
 		when(productRepository.findById(1L)).thenReturn(Optional.empty());
 

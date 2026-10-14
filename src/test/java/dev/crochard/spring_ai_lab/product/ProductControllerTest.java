@@ -21,6 +21,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -45,6 +46,18 @@ class ProductControllerTest {
 			.andExpect(status().isCreated())
 			.andExpect(header().string("Location", "/api/products/3"))
 			.andExpect(jsonPath("$.price").value(49.99));
+	}
+
+	@Test
+	void mapsConcurrentDuplicateReferenceTo409WithoutLeakingSqlDetails() throws Exception {
+		when(productService.create(any()))
+			.thenThrow(new DataIntegrityViolationException("duplicate key value violates uk_products_reference"));
+
+		mockMvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content("""
+				{"reference": "KB-01", "name": "Clavier", "price": 49.99, "active": true}
+				"""))
+			.andExpect(status().isConflict())
+			.andExpect(jsonPath("$.detail").value("Violation d'une contrainte d'intégrité des données"));
 	}
 
 	@Test
